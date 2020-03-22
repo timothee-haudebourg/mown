@@ -1,0 +1,12 @@
+[package]
+name = "mown"
+version = "0.1.0"
+authors = ["Timothée Haudebourg <author@haudebourg.net>"]
+edition = "2018"
+categories = ["data-structures"]
+keywords = ["wrapper", "borrow", "reference", "own", "container"]
+description = "Maybe owned values. Wrappers for values that can be either owned or borrowed."
+repository = "https://github.com/timothee-haudebourg/mown"
+documentation = "https://docs.rs/mown"
+license = "MIT/Apache-2.0"
+readme = "README.md"
