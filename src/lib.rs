@@ -1,7 +1,7 @@
 //! This crate provides two simple wrappers
-//! [`Mown`](https://docs.rs/mown/enum.Mown.html)
+//! [`Mown`]
 //! and
-//! [`MownMut`](https://docs.rs/mown/enum.MownMut.html)
+//! [`MownMut`]
 //! for values that can be either owned or borrowed.
 //! The type `Mown` is an simple `enum` type with two constructors:
 //!
