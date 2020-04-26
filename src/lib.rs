@@ -181,6 +181,12 @@ impl<'a, T: ?Sized + ToOwned + Debug> Debug for Mown<'a, T> {
 	}
 }
 
+impl<'a, T: ?Sized + ToOwned, Q: Borrow<T>> From<&'a Q> for Mown<'a, T> {
+	fn from(r: &'a Q) -> Mown<'a, T> {
+		Mown::Borrowed(r.borrow())
+	}
+}
+
 /// Container for mutabily borrowed or owned values.
 pub enum MownMut<'a, T: ?Sized + ToOwned> {
 	/// Owned value.
@@ -275,5 +281,11 @@ impl<'a, T: ?Sized + ToOwned + Display> Display for MownMut<'a, T> {
 impl<'a, T: ?Sized + ToOwned + Debug> Debug for MownMut<'a, T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		self.as_ref().fmt(f)
+	}
+}
+
+impl<'a, T: ?Sized + ToOwned, Q: BorrowMut<T>> From<&'a mut Q> for MownMut<'a, T> {
+	fn from(r: &'a mut Q) -> MownMut<'a, T> {
+		MownMut::Borrowed(r.borrow_mut())
 	}
 }
