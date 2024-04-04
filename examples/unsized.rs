@@ -1,5 +1,5 @@
-use std::io::{self, Read};
 use mown::Mown;
+use std::io::{self, Read};
 
 fn response(input: &str) -> Mown<str> {
 	if input == "Hello\n" {
@@ -11,10 +11,10 @@ fn response(input: &str) -> Mown<str> {
 
 fn main() -> io::Result<()> {
 	let mut buffer = String::new();
-    let stdin = io::stdin();
-    let mut handle = stdin.lock();
+	let stdin = io::stdin();
+	let mut handle = stdin.lock();
 
-    handle.read_to_string(&mut buffer)?;
+	handle.read_to_string(&mut buffer)?;
 
 	let output = response(buffer.as_ref());
 	println!("{}", output);

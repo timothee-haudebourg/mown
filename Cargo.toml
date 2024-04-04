@@ -1,8 +1,8 @@
 [package]
 name = "mown"
-version = "0.2.1"
+version = "1.0.0"
 authors = ["Timothée Haudebourg <author@haudebourg.net>"]
-edition = "2018"
+edition = "2021"
 categories = ["data-structures"]
 keywords = ["wrapper", "borrow", "reference", "own", "container"]
 description = "Maybe owned values. Wrappers for values that can be either owned or borrowed."

@@ -1,19 +1,19 @@
 //! This crate provides two simple wrappers
-//! [`Mown`]
+//! [`Mown`](crate::Mown)
 //! and
-//! [`MownMut`]
+//! [`MownMut`](crate::MownMut)
 //! for values that can be either owned or borrowed.
 //! The type `Mown` is an simple `enum` type with two constructors:
 //!
 //! ```rust
 //! # use std::borrow::Borrow;
-//! pub trait ToOwned {
-//! 	type Owned: Borrow<Self>;
+//! pub trait Borrowed {
+//!   type Owned: Borrow<Self>;
 //! }
 //!
-//! pub enum Mown<'a, T: ToOwned> {
-//! 	Owned(T::Owned),
-//! 	Borrowed(&'a T)
+//! pub enum Mown<'a, T: Borrowed> {
+//!   Owned(T::Owned),
+//!   Borrowed(&'a T)
 //! }
 //! ```
 //!
@@ -38,13 +38,13 @@
 //! use mown::Mown;
 //!
 //! fn function(input_value: &String) -> Mown<String> {
-//! 	# let condition = true;
-//! 	if condition {
-//! 		Mown::Borrowed(input_value)
-//! 	} else {
-//! 		let custom_value: String = "foo_".to_string() + input_value + "_bar";
-//! 		Mown::Owned(custom_value)
-//! 	}
+//!   # let condition = true;
+//!   if condition {
+//!     Mown::Borrowed(input_value)
+//!   } else {
+//!     let custom_value: String = "foo_".to_string() + input_value + "_bar";
+//!     Mown::Owned(custom_value)
+//!   }
 //! }
 //! ```
 //!
@@ -56,54 +56,54 @@
 //! use mown::Mown;
 //!
 //! fn function(input_value: &str) -> Mown<str> {
-//! 	# let condition = true;
-//! 	if condition {
-//! 		Mown::Borrowed(input_value)
-//! 	} else {
-//! 		let custom_value: String = "foo_".to_string() + input_value + "_bar";
-//! 		Mown::Owned(custom_value)
-//! 	}
+//!   # let condition = true;
+//!   if condition {
+//!     Mown::Borrowed(input_value)
+//!   } else {
+//!     let custom_value: String = "foo_".to_string() + input_value + "_bar";
+//!     Mown::Owned(custom_value)
+//!   }
 //! }
 //! ```
 
-use std::ops::{Deref, DerefMut};
-use std::cmp::{PartialOrd, Ord, Ordering};
-use std::hash::{Hash, Hasher};
-use std::fmt::{self, Display, Debug, Formatter};
 use std::borrow::{Borrow, BorrowMut};
+use std::cmp::{Ord, Ordering, PartialOrd};
+use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
+use std::ops::{Deref, DerefMut};
 
-/// Types that can be owned.
-pub trait ToOwned {
+/// Types that are borrowed.
+pub trait Borrowed {
 	type Owned: Borrow<Self>;
 }
 
-impl<T: Sized> ToOwned for T {
+impl<T: Sized> Borrowed for T {
 	type Owned = T;
 }
 
-impl ToOwned for str {
+impl Borrowed for str {
 	type Owned = String;
 }
 
-impl<T> ToOwned for [T] {
+impl<T> Borrowed for [T] {
 	type Owned = Vec<T>;
 }
 
 /// Container for borrowed or owned value.
-pub enum Mown<'a, T: ?Sized + ToOwned> {
+pub enum Mown<'a, T: ?Sized + Borrowed> {
 	/// Owned value.
 	Owned(T::Owned),
 
 	/// Borrowed value.
-	Borrowed(&'a T)
+	Borrowed(&'a T),
 }
 
-impl<'a, T: ?Sized + ToOwned> Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed> Mown<'a, T> {
 	/// Checks if the value is owned.
 	pub fn is_owned(&self) -> bool {
 		match self {
 			Mown::Owned(_) => true,
-			Mown::Borrowed(_) => false
+			Mown::Borrowed(_) => false,
 		}
 	}
 
@@ -111,31 +111,44 @@ impl<'a, T: ?Sized + ToOwned> Mown<'a, T> {
 	pub fn is_borrowed(&self) -> bool {
 		match self {
 			Mown::Owned(_) => false,
-			Mown::Borrowed(_) => true
+			Mown::Borrowed(_) => true,
 		}
 	}
 
 	/// Returns the owned value as a mutable reference, if any.
 	///
 	/// If the value is borrowed, returns `None`.
-	pub fn as_mut(&mut self) -> Option<&mut T> where T::Owned: BorrowMut<T> {
+	pub fn as_mut(&mut self) -> Option<&mut T>
+	where
+		T::Owned: BorrowMut<T>,
+	{
 		match self {
 			Mown::Owned(t) => Some(t.borrow_mut()),
-			Mown::Borrowed(_) => None
+			Mown::Borrowed(_) => None,
+		}
+	}
+
+	pub fn into_owned(self) -> <T as Borrowed>::Owned
+	where
+		T: ToOwned<Owned = <T as Borrowed>::Owned>,
+	{
+		match self {
+			Self::Borrowed(t) => t.to_owned(),
+			Self::Owned(t) => t,
 		}
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned> AsRef<T> for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed> AsRef<T> for Mown<'a, T> {
 	fn as_ref(&self) -> &T {
 		match self {
 			Mown::Owned(t) => t.borrow(),
-			Mown::Borrowed(t) => t
+			Mown::Borrowed(t) => t,
 		}
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned> Deref for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed> Deref for Mown<'a, T> {
 	type Target = T;
 
 	fn deref(&self) -> &T {
@@ -143,65 +156,65 @@ impl<'a, T: ?Sized + ToOwned> Deref for Mown<'a, T> {
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + PartialEq> PartialEq for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed + PartialEq> PartialEq for Mown<'a, T> {
 	fn eq(&self, other: &Mown<'a, T>) -> bool {
 		self.as_ref() == other.as_ref()
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Eq> Eq for Mown<'a, T> { }
+impl<'a, T: ?Sized + Borrowed + Eq> Eq for Mown<'a, T> {}
 
-impl<'a, T: ?Sized + ToOwned + PartialOrd> PartialOrd for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed + PartialOrd> PartialOrd for Mown<'a, T> {
 	fn partial_cmp(&self, other: &Mown<'a, T>) -> Option<Ordering> {
 		self.as_ref().partial_cmp(other)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Ord> Ord for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed + Ord> Ord for Mown<'a, T> {
 	fn cmp(&self, other: &Mown<'a, T>) -> Ordering {
 		self.as_ref().cmp(other)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Hash> Hash for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed + Hash> Hash for Mown<'a, T> {
 	fn hash<H: Hasher>(&self, hasher: &mut H) {
 		self.as_ref().hash(hasher)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Display> Display for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed + Display> Display for Mown<'a, T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		self.as_ref().fmt(f)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Debug> Debug for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed + Debug> Debug for Mown<'a, T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		self.as_ref().fmt(f)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned, Q: Borrow<T>> From<&'a Q> for Mown<'a, T> {
+impl<'a, T: ?Sized + Borrowed, Q: Borrow<T>> From<&'a Q> for Mown<'a, T> {
 	fn from(r: &'a Q) -> Mown<'a, T> {
 		Mown::Borrowed(r.borrow())
 	}
 }
 
 /// Container for mutabily borrowed or owned values.
-pub enum MownMut<'a, T: ?Sized + ToOwned> {
+pub enum MownMut<'a, T: ?Sized + Borrowed> {
 	/// Owned value.
 	Owned(T::Owned),
 
 	/// Borrowed value.
-	Borrowed(&'a mut T)
+	Borrowed(&'a mut T),
 }
 
-impl<'a, T: ?Sized + ToOwned> MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed> MownMut<'a, T> {
 	/// Checks if the value is owned.
 	pub fn is_owned(&self) -> bool {
 		match self {
 			MownMut::Owned(_) => true,
-			MownMut::Borrowed(_) => false
+			MownMut::Borrowed(_) => false,
 		}
 	}
 
@@ -209,30 +222,43 @@ impl<'a, T: ?Sized + ToOwned> MownMut<'a, T> {
 	pub fn is_borrowed(&self) -> bool {
 		match self {
 			MownMut::Owned(_) => false,
-			MownMut::Borrowed(_) => true
+			MownMut::Borrowed(_) => true,
+		}
+	}
+
+	pub fn into_owned(self) -> <T as Borrowed>::Owned
+	where
+		T: ToOwned<Owned = <T as Borrowed>::Owned>,
+	{
+		match self {
+			Self::Borrowed(t) => t.to_owned(),
+			Self::Owned(t) => t,
 		}
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned> AsRef<T> for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed> AsRef<T> for MownMut<'a, T> {
 	fn as_ref(&self) -> &T {
 		match self {
 			MownMut::Owned(t) => t.borrow(),
-			MownMut::Borrowed(t) => t
+			MownMut::Borrowed(t) => t,
 		}
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned> AsMut<T> for MownMut<'a, T> where T::Owned: BorrowMut<T> {
+impl<'a, T: ?Sized + Borrowed> AsMut<T> for MownMut<'a, T>
+where
+	T::Owned: BorrowMut<T>,
+{
 	fn as_mut(&mut self) -> &mut T {
 		match self {
 			MownMut::Owned(t) => t.borrow_mut(),
-			MownMut::Borrowed(t) => t
+			MownMut::Borrowed(t) => t,
 		}
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned> Deref for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed> Deref for MownMut<'a, T> {
 	type Target = T;
 
 	fn deref(&self) -> &T {
@@ -240,51 +266,54 @@ impl<'a, T: ?Sized + ToOwned> Deref for MownMut<'a, T> {
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned> DerefMut for MownMut<'a, T> where T::Owned: BorrowMut<T> {
+impl<'a, T: ?Sized + Borrowed> DerefMut for MownMut<'a, T>
+where
+	T::Owned: BorrowMut<T>,
+{
 	fn deref_mut(&mut self) -> &mut T {
 		self.as_mut()
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + PartialEq> PartialEq for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed + PartialEq> PartialEq for MownMut<'a, T> {
 	fn eq(&self, other: &MownMut<'a, T>) -> bool {
 		self.as_ref() == other.as_ref()
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Eq> Eq for MownMut<'a, T> { }
+impl<'a, T: ?Sized + Borrowed + Eq> Eq for MownMut<'a, T> {}
 
-impl<'a, T: ?Sized + ToOwned + PartialOrd> PartialOrd for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed + PartialOrd> PartialOrd for MownMut<'a, T> {
 	fn partial_cmp(&self, other: &MownMut<'a, T>) -> Option<Ordering> {
 		self.as_ref().partial_cmp(other)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Ord> Ord for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed + Ord> Ord for MownMut<'a, T> {
 	fn cmp(&self, other: &MownMut<'a, T>) -> Ordering {
 		self.as_ref().cmp(other)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Hash> Hash for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed + Hash> Hash for MownMut<'a, T> {
 	fn hash<H: Hasher>(&self, hasher: &mut H) {
 		self.as_ref().hash(hasher)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Display> Display for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed + Display> Display for MownMut<'a, T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		self.as_ref().fmt(f)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned + Debug> Debug for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed + Debug> Debug for MownMut<'a, T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		self.as_ref().fmt(f)
 	}
 }
 
-impl<'a, T: ?Sized + ToOwned, Q: BorrowMut<T>> From<&'a mut Q> for MownMut<'a, T> {
+impl<'a, T: ?Sized + Borrowed, Q: BorrowMut<T>> From<&'a mut Q> for MownMut<'a, T> {
 	fn from(r: &'a mut Q) -> MownMut<'a, T> {
 		MownMut::Borrowed(r.borrow_mut())
 	}
